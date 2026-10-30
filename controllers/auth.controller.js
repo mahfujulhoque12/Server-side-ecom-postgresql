@@ -9,6 +9,8 @@ import { generateResetPasswordToken } from "../utils/generateResetPassword.js";
 import { sendEmail } from "./../utils/sendEmail.js";
 import { generateEmailTemplate } from "../utils/emailPasswordForgotTemplete.js";
 import crypto from "crypto";
+import { v2 as cloudinary } from "cloudinary";
+
 export const register = catchAsyncError(async (req, res, next) => {
   const { name, email, password } = req.body;
 
@@ -364,6 +366,94 @@ export const updatePassword = async (req, res) => {
     });
   } catch (error) {
     console.error("Update password error:", error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+export const updateProfile = async (req, res) => {
+  try {
+    const { name, email } = req.body;
+
+    // Validate required fields
+    if (!name?.trim() || !email?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Name and email are required",
+      });
+    }
+
+    // Find existing user by email
+    const existingUser = await pool.query(
+      "SELECT id, avatar FROM users WHERE email = $1",
+      [email.trim()],
+    );
+
+    if (existingUser.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const userId = existingUser.rows[0].id;
+
+    let avatarData = existingUser.rows[0].avatar;
+
+    // Upload new avatar if provided
+    if (req.files?.avatar) {
+      const { avatar } = req.files;
+
+      // Upload new image to Cloudinary
+      const uploadedImage = await cloudinary.uploader.upload(
+        avatar.tempFilePath,
+        {
+          folder: "Ecom_avatar",
+          width: 150,
+          crop: "scale",
+        },
+      );
+
+      // Delete old avatar after successful upload
+      if (avatarData?.public_id) {
+        await cloudinary.uploader.destroy(avatarData.public_id);
+      }
+
+      avatarData = {
+        public_id: uploadedImage.public_id,
+        url: uploadedImage.secure_url,
+      };
+    }
+
+    // Update user profile
+    const user = await pool.query(
+      `UPDATE users
+       SET name = $1,
+           email = $2,
+           avatar = $3
+       WHERE id = $4
+       RETURNING id, name, email, avatar, role`,
+      [name.trim(), email.trim(), JSON.stringify(avatarData), userId],
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      user: user.rows[0],
+    });
+  } catch (error) {
+    console.error("Update profile error:", error);
+
+    // Handle duplicate email
+    if (error.code === "23505") {
+      return res.status(409).json({
+        success: false,
+        message: "Email already exists",
+      });
+    }
 
     return res.status(500).json({
       success: false,
