@@ -8,6 +8,7 @@ import initDatabase from "./database/initDatabase.js";
 import pool from "./database/db.js";
 import { errorMiddleware } from "./middleware/errorMiddleware.js";
 import authRouter from "./routes/auth.route.js";
+import productRouter from "./routes/product.route.js";
 
 dotenv.config();
 
@@ -46,6 +47,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1", productRouter);
 
 const startServer = async () => {
   try {
