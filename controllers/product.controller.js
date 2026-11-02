@@ -93,3 +93,52 @@ export const createProduct = async (req, res) => {
     });
   }
 };
+
+export const allProducts = async (req, res, next) => {
+  try {
+    // 1. Get query parameters
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(
+      100,
+      Math.max(1, Number.parseInt(req.query.limit, 10) || 10),
+    );
+
+    const offset = (page - 1) * limit;
+
+    // 2. Get total product count
+    const countResult = await pool.query("SELECT COUNT(*) FROM products");
+
+    const totalProducts = Number(countResult.rows[0].count);
+
+    // 3. Fetch products with pagination
+    const productsResult = await pool.query(
+      `SELECT id, name, description, price, category, ratings, images, created_at
+       FROM products
+       ORDER BY created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset],
+    );
+
+    // 4. Calculate pagination metadata
+    const totalPages = Math.ceil(totalProducts / limit);
+
+    // 5. Send response
+    return res.status(200).json({
+      success: true,
+      message: "Products retrieved successfully",
+      data: {
+        products: productsResult.rows,
+        pagination: {
+          currentPage: page,
+          limit,
+          totalProducts,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
