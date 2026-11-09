@@ -142,3 +142,23 @@ export const allProducts = async (req, res, next) => {
     next(error);
   }
 };
+
+export const updateProduct = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { name, description, price, category, stock } = req.body;
+
+    // Validate required fields
+    if (
+      !name?.trim() ||
+      price === undefined ||
+      !category?.trim() ||
+      stock === undefined
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, price, category and stock are required",
+      });
+    }
+  } catch (error) {}
+};
