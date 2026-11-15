@@ -47,7 +47,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/v1/auth", authRouter);
-app.use("/api/v1", productRouter);
+app.use("/api/v1/product", productRouter);
 
 const startServer = async () => {
   try {
